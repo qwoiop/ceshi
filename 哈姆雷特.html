@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测测你是莎士比亚笔下的哪位悲剧人物</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cream: '#F8F5F0',
+                        darkBrown: '#2C2422',
+                        accent: '#D4A373',
+                        subtle: '#E9E5D6'
+                    },
+                    fontFamily: {
+                        serif: ['Georgia', 'Cambria', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow-sm { text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+            .quiz-card { @apply bg-white/90 border border-subtle rounded-xl p-6 shadow-md transition-all duration-300 hover:shadow-lg; }
+            .option-btn { @apply w-full text-left px-5 py-3 rounded-lg border border-darkBrown/20 hover:bg-accent/10 transition-all cursor-pointer; }
+            .result-card { @apply bg-white/95 border border-subtle rounded-2xl p-8 shadow-xl; }
+        }
+    </style>
+</head>
+<body class="bg-cream text-darkBrown font-serif min-h-screen">
+    <!-- 封面 -->
+    <div id="cover" class="flex flex-col items-center justify-center min-h-screen px-6 text-center">
+        <div class="max-w-2xl mx-auto space-y-8">
+            <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold tracking-tight text-shadow-sm">
+                测测你是莎士比亚笔下<br>哪位悲剧人物
+            </h1>
+            <p class="text-lg opacity-80 italic">一场关于命运、挣扎与灵魂的深度测验</p>
+            <button onclick="startQuiz()" class="mt-6 px-8 py-4 bg-accent text-white rounded-full shadow-md hover:shadow-lg transition-all text-base">
+                开始测验 <i class="fa-solid fa-feather-pointed ml-2"></i>
+            </button>
+            <p class="text-sm opacity-60">共35题 | 预计耗时5分钟 | 深度解析你的悲剧灵魂</p>
+        </div>
+    </div>
+
+    <!-- 问卷区域 -->
+    <div id="quiz" class="hidden px-4 py-12 max-w-3xl mx-auto">
+        <div class="mb-8 flex justify-between items-center">
+            <h2 class="text-xl font-semibold">灵魂测验 <span id="progress-text">1/35</span></h2>
+            <div class="w-2/3 bg-subtle rounded-full h-2">
+                <div id="progress-bar" class="bg-accent h-2 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+        <div id="question-container" class="quiz-card">
+            <h3 id="question-text" class="text-xl mb-6 leading-relaxed"></h3>
+            <div id="options-container" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <!-- 结果区域 -->
+    <div id="result" class="hidden px-4 py-12 max-w-4xl mx-auto">
+        <div class="result-card space-y-8">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold mb-2">你的悲剧灵魂画像</h2>
+                <p class="opacity-70 italic">命运早已在文字中写下答案</p>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-8 items-center">
+                <div class="w-full md:w-1/2 h-64">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="w-full md:w-1/2 text-center md:text-left">
+                    <h3 id="result-name" class="text-2xl font-bold text-accent mb-3"></h3>
+                    <p id="result-tag" class="italic opacity-80 mb-4"></p>
+                </div>
+            </div>
+
+            <div class="border-t border-subtle pt-6">
+                <h4 class="text-lg font-semibold mb-4">灵魂解析</h4>
+                <div id="result-desc" class="leading-relaxed text-base space-y-4"></div>
+            </div>
+
+            <div class="text-center pt-4">
+                <button onclick="restartQuiz()" class="px-6 py-3 bg-accent/90 text-white rounded-full hover:bg-accent transition-all">
+                    重新测验 <i class="fa-solid fa-rotate-right ml-1"></i>
+                </button>
+                <p class="mt-4 text-sm opacity-60">分享这份宿命感，让朋友也来测测</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 7位悲剧人物配置
+        const characters = [
+            {
+                name: "哈姆雷特",
+                tag: "犹豫的思想者，被宿命困住的王子",
+                dimensions: {理想:90,犹豫:95,挣扎:85,理智:90,孤独:88,敏感:92,痛苦:80},
+                desc: "你是哈姆雷特，拥有最清醒的头脑，却也背负着最沉重的犹豫。你习惯在思想里反复推演，在行动前不断内耗，明明看清了世界的真相，却始终无法迈出关键一步。你的痛苦源于理想与现实的撕裂，源于对人性的深度怀疑，你不是懦弱，而是太过敏感与认真。你在深夜与自己对话，在怀疑中坚守良知，在挣扎中守护初心，你的悲剧不是失败，而是一个高贵灵魂在混沌世间的自我拉扯。你习惯独自承受一切，把情绪藏在沉默里，把思考埋在深夜中，你是人间清醒的思想者，也是被自己困住的孤独灵魂。"
+            },
+            {
+                name: "罗密欧",
+                tag: "炽热的恋人，被爱灼烧的灵魂",
+                dimensions: {理想:85,热情:98,冲动:90,真诚:95,孤独:60,敏感:85,痛苦:82},
+                desc: "你是罗密欧，灵魂里藏着永不熄灭的火焰，为爱可以不顾一切，为真诚可以抛弃一切。你热烈、纯粹、勇敢，眼里容不得虚伪与冷漠，一旦认定便会倾尽所有奔赴。你的悲剧源于太过炽热的情感，源于不受束缚的天性，源于在世俗规则中坚持本心的孤勇。你不怕伤害，不怕离别，只怕真心被辜负，只怕热爱被辜负。你活得坦荡而热烈，爱得真诚而疯狂，在薄情的世界里深情地活着，即使被爱灼伤，也从未放弃对美好的向往。"
+            },
+            {
+                name: "朱丽叶",
+                tag: "决绝的少女，为爱坚守的勇者",
+                dimensions: {理想:88,勇气:95,执着:96,温柔:90,敏感:86,坚定:94,痛苦:78},
+                desc: "你是朱丽叶，外表温柔，内心却有着撼动命运的力量。你清醒、独立、果敢，在世俗束缚中坚守自己的选择，在困境面前绝不低头。你看似柔弱，却拥有最坚韧的灵魂，一旦做出决定便会义无反顾，哪怕付出一切代价。你的悲剧源于世俗的阻碍，源于坚守真爱与初心的勇气，源于不向命运妥协的骄傲。你不畏惧黑暗，不畏惧流言，只忠于自己的内心，在冰冷的世界里守护着温暖与真爱，用最柔软的姿态，活出最坚硬的人生。"
+            },
+            {
+                name: "麦克白",
+                tag: "被野心吞噬的王者，在欲望中沉沦",
+                dimensions: {野心:98,权力:95,挣扎:92,悔恨:85,孤独:90,痛苦:96,理智:70},
+                desc: "你是麦克白，拥有超凡的能力与野心，不甘平庸，渴望站在顶峰，却在欲望的道路上逐渐迷失自我。你有过善良，有过犹豫，有过良知的挣扎，却最终被野心推着向前，在得到与失去中反复痛苦。你的悲剧不是能力不足，而是欲望超过了底线，野心战胜了良知，在追逐目标的路上弄丢了最初的自己。你站在高处却倍感孤独，拥有一切却倍感空虚，在悔恨与痛苦中反复煎熬，你是野心的奴隶，也是自己灵魂的囚徒。"
+            },
+            {
+                name: "奥赛罗",
+                tag: "多疑的英雄，被猜忌摧毁的强者",
+                dimensions: {信任:50,敏感:96,骄傲:90,痛苦:94,冲动:88,真诚:85,孤独:86},
+                desc: "你是奥赛罗，强大、优秀、真诚，却被内心的敏感与猜忌彻底摧毁。你拥有令人羡慕的一切，却始终无法相信自己值得被爱，无法相信身边人的真诚，一点风吹草动就能让你陷入崩溃。你的悲剧源于内心的不安全感，源于过度的骄傲与敏感，源于把真心交给了怀疑。你不是不够好，而是太害怕失去，太害怕被背叛，最终亲手摧毁了自己最珍视的一切。你在痛苦中悔恨，在孤独中自愈，却始终难以摆脱内心的枷锁。"
+            },
+            {
+                name: "李尔王",
+                tag: "偏执的君王，在孤独中醒悟的灵魂",
+                dimensions: {骄傲:95,固执:92,孤独:98,痛苦:90,善良:85,脆弱:88,成长:75},
+                desc: "你是李尔王，习惯用骄傲伪装脆弱，用强势掩盖孤独，一生都在追求认可与尊重，却在最亲近的人面前迷失方向。你固执、自我、渴望被崇拜，却在经历风雨后才看清真心与虚伪，明白陪伴与珍惜。你的悲剧源于过度的骄傲与偏执，源于看不清人心，源于在拥有时不懂珍惜，在失去后才追悔莫及。你在孤独中成长，在痛苦中醒悟，从锋芒毕露到温柔通透，用一生的坎坷完成了灵魂的救赎。"
+            },
+            {
+                name: "苔丝狄蒙娜",
+                tag: "纯洁的天使，被命运辜负的温柔",
+                dimensions: {善良:98,温柔:97,纯真:96,勇敢:85,痛苦:80,无辜:99,脆弱:86},
+                desc: "你是苔丝狄蒙娜，灵魂纯净如月光，温柔善良，相信美好，热爱世界，用最大的善意对待所有人，却被命运与误会狠狠伤害。你没有过错，却承担了最沉重的结局；你真心付出，却被猜忌与流言摧毁。你的悲剧不是源于自身，而是世间的黑暗配不上你的纯洁，世俗的险恶配不上你的温柔。你始终保持初心，坚守善良，即使身处黑暗也向往光明，即使历经伤害也选择原谅，你是人间最温柔的光，也是最让人心疼的存在。"
+            }
+        ];
+
+        // 35道深度测试题
+        const questions = [
+            {q:"面对重要抉择，你更倾向于？",o:["反复思考权衡利弊","跟随直觉立刻行动","拖延到最后不得不做","听从他人建议决定"]},
+            {q:"你如何看待自己的过去？",o:["时常怀念无法释怀","早已放下向前看","偶尔感慨但不纠结","充满悔恨与痛苦"]},
+            {q:"你最无法接受的是？",o:["背叛与欺骗","孤独与无人理解","平庸与碌碌无为","失去自由与掌控权"]},
+            {q:"陷入困境时，你会？",o:["独自硬扛绝不求助","寻找朋友寻求帮助","冷静分析寻找出路","情绪崩溃逃避现实"]},
+            {q:"你对爱情的态度是？",o:["忠贞不渝不顾一切","谨慎小心害怕受伤","随缘不强求不执着","爱情只是生活一部分"]},
+            {q:"你认为自己最大的弱点是？",o:["过于犹豫不够果断","过于敏感容易受伤","过于冲动不计后果","过于骄傲不愿低头"]},
+            {q:"当理想与现实冲突，你会？",o:["坚守理想绝不妥协","妥协现实适应生活","痛苦挣扎难以抉择","尝试寻找平衡之道"]},
+            {q:"你更在意他人的？",o:["真诚与真心","能力与价值","态度与尊重","陪伴与理解"]},
+            {q:"深夜独处时，你通常会？",o:["思考人生陷入内耗","放松休息享受安静","回忆过往感到孤独","规划未来充满焦虑"]},
+            {q:"你对命运的看法是？",o:["命中注定无法改变","人定胜天可以改变","半信半疑顺其自然","厌恶宿命想要反抗"]},
+            {q:"被误解时，你会？",o:["极力解释证明自己","沉默不语懒得解释","内心痛苦默默承受","记在心里伺机澄清"]},
+            {q:"你更向往的生活是？",o:["轰轰烈烈不留遗憾","平静安稳岁月静好","自由洒脱无拘无束","功成名就受人敬仰"]},
+            {q:"你面对欲望的态度是？",o:["克制自己坚守底线","放纵自我及时行乐","在欲望中挣扎痛苦","没有强烈的欲望"]},
+            {q:"你如何看待遗憾？",o:["时常想起无法释怀","已经接受慢慢放下","努力弥补不留遗憾","认为遗憾是人生常态"]},
+            {q:"你最害怕的是？",o:["失去重要的人","一事无成的平庸","不被理解的孤独","身不由己的无奈"]},
+            {q:"你做事的风格是？",o:["深思熟虑计划周全","想到就做雷厉风行","追求完美小心翼翼","随性而为不拘小节"]},
+            {q:"你对自我的认知是？",o:["了解自己但难改变","不了解自己很迷茫","接纳自己热爱自己","讨厌自己想要改变"]},
+            {q:"当真心被辜负，你会？",o:["不再相信封闭内心","依然善良保持初心","报复对方以牙还牙","默默离开独自疗伤"]},
+            {q:"你更看重？",o:["精神世界的富足","物质生活的安稳","人际关系的和谐","自我价值的实现"]},
+            {q:"你面对仇恨的态度是？",o:["铭记在心伺机报复","放下恩怨放过自己","痛苦挣扎难以抉择","以德报怨选择原谅"]},
+            {q:"你在人群中通常是？",o:["安静沉默观察他人","活跃气氛带动全场","真诚交流表达自我","独来独往不愿合群"]},
+            {q:"你认为人生的意义是？",o:["追求理想实现价值","收获真爱陪伴彼此","平安快乐度过一生","证明自己超越他人"]},
+            {q:"你容易被什么影响情绪？",o:["他人的态度与眼神","环境的变化与压力","回忆的碎片与过往","未来的未知与迷茫"]},
+            {q:"你面对失败的态度是？",o:["无法接受自我否定","重新振作越挫越勇","逃避现实不愿面对","坦然接受总结经验"]},
+            {q:"你更像哪种角色？",o:["思考者：理智纠结","行动者：勇敢冲动","守护者：温柔坚定","孤独者：沉默敏感"]},
+            {q:"你对善良的理解是？",o:["无条件对他人好","有底线的温柔善良","善良无用适者生存","只对值得的人善良"]},
+            {q:"你是否经常感到孤独？",o:["时常孤独无人理解","偶尔孤独享受独处","很少孤独身边有人","从不孤独内心充盈"]},
+            {q:"你面对选择的后悔率？",o:["经常后悔反复纠结","偶尔后悔但能接受","从不后悔自己承担","后悔但不会表现出"]},
+            {q:"你最想拥有的特质是？",o:["果断不犹豫","坚强不脆弱","理智不敏感","自由不被束缚"]},
+            {q:"你对人性的看法是？",o:["人性本善相信美好","人性复杂保持警惕","人性本恶自私凉薄","善恶并存顺其自然"]},
+            {q:"你在感情中是？",o:["付出型全心全意","索取型需要安全感","理智型保持距离","敏感型患得患失"]},
+            {q:"你面对压力的状态是？",o:["焦虑内耗难以入睡","冷静处理化解压力","逃避放松暂时忘记","找人倾诉释放情绪"]},
+            {q:"你是否在意他人评价？",o:["非常在意自我内耗","有点在意但不影响","毫不在意只做自己","在意但会理性看待"]},
+            {q:"你认为悲剧的来源是？",o:["自身性格与弱点","命运捉弄与无常","他人伤害与背叛","现实残酷与无奈"]},
+            {q:"如果能重来，你会？",o:["改变过去的选择","保持原样一切不变","弥补曾经的遗憾","遇见更好的自己"]}
+        ];
+
+        // 全局变量
+        let currentQuestion = 0;
+        let answers = Array(questions.length).fill(0);
+        let ctx, radarChart;
+
+        // 启动测验
+        function startQuiz() {
+            document.getElementById('cover').classList.add('hidden');
+            document.getElementById('quiz').classList.remove('hidden');
+            renderQuestion();
+        }
+
+        // 渲染题目
+        function renderQuestion() {
+            const q = questions[currentQuestion];
+            document.getElementById('question-text').innerText = q.q;
+            const optContainer = document.getElementById('options-container');
+            optContainer.innerHTML = '';
+            
+            q.o.forEach((option, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'option-btn';
+                btn.innerText = option;
+                btn.onclick = () => selectOption(idx);
+                optContainer.appendChild(btn);
+            });
+
+            const progress = ((currentQuestion + 1) / questions.length) * 100;
+            document.getElementById('progress-bar').style.width = progress + '%';
+            document.getElementById('progress-text').innerText = `${currentQuestion + 1}/${questions.length}`;
+        }
+
+        // 选择答案
+        function selectOption(idx) {
+            answers[currentQuestion] = idx;
+            currentQuestion++;
+            if (currentQuestion >= questions.length) {
+                showResult();
+            } else {
+                renderQuestion();
+            }
+        }
+
+        // 计算结果并生成雷达图
+        function showResult() {
+            document.getElementById('quiz').classList.add('hidden');
+            document.getElementById('result').classList.remove('hidden');
+            
+            // 简化匹配算法
+            const scores = characters.map(() => 0);
+            answers.forEach((a, i) => {
+                const key = i % 7;
+                scores[key] += (a + 1) * 10;
+            });
+
+            let maxScore = 0;
+            let result = characters[0];
+            scores.forEach((s, i) => {
+                if (s > maxScore) {
+                    maxScore = s;
+                    result = characters[i];
+                }
+            });
+
+            // 渲染结果
+            document.getElementById('result-name').innerText = result.name;
+            document.getElementById('result-tag').innerText = result.tag;
+            document.getElementById('result-desc').innerText = result.desc;
+
+            // 绘制网状雷达图
+            const dims = Object.keys(result.dimensions);
+            const values = dims.map(d => result.dimensions[d]);
+            ctx = document.getElementById('radarChart').getContext('2d');
+            
+            if (radarChart) radarChart.destroy();
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: dims.map(d => ({
+                        理想:"理想主义",犹豫:"犹豫敏感",挣扎:"内心挣扎",理智:"理智清醒",孤独:"孤独感",敏感:"细腻敏感",痛苦:"痛苦深度",
+                        热情:"热情炽热",冲动:"冲动率真",真诚:"真诚纯粹",勇气:"勇敢坚定",执着:"执着坚守",温柔:"温柔柔软",坚定:"内心坚定",
+                        野心:"野心欲望",权力:"权力渴望",悔恨:"悔恨自责",信任:"信任他人",骄傲:"骄傲自尊",纯真:"纯真善良",无辜:"纯粹无辜",
+                        固执:"固执偏执",成长:"自我成长",脆弱:"内心脆弱"
+                    }[d] || d)),
+                    datasets: [{
+                        label: result.name,
+                        data: values,
+                        backgroundColor: 'rgba(212, 163, 115, 0.2)',
+                        borderColor: '#D4A373',
+                        pointBackgroundColor: '#D4A373',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#D4A373'
+                    }]
+                },
+                options: {
+                    scales: { r: { beginAtZero: true, max: 100 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // 重新测验
+        function restartQuiz() {
+            currentQuestion = 0;
+            answers = Array(questions.length).fill(0);
+            document.getElementById('result').classList.add('hidden');
+            document.getElementById('cover').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
